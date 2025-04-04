@@ -543,7 +543,7 @@ class MotorsBus(abc.ABC):
             motors = self.names
         elif isinstance(motors, (str, int)):
             motors = [motors]
-        else:
+        elif not isinstance(motors, list):
             raise TypeError(motors)
 
         self.reset_calibration(motors)
@@ -603,6 +603,7 @@ class MotorsBus(abc.ABC):
             min_ = self.calibration[name].range_min
             max_ = self.calibration[name].range_max
             bounded_val = min(max_, max(min_, val))
+            # TODO(Steven): normalization can go boom if max_ == min_, we should add a check probably in record_ranges_of_motions (which probably indicates the user forgot to move a motor)
             if self.motors[name].norm_mode is MotorNormMode.RANGE_M100_100:
                 normalized_values[id_] = (((bounded_val - min_) / (max_ - min_)) * 200) - 100
             elif self.motors[name].norm_mode is MotorNormMode.RANGE_0_100:
@@ -822,8 +823,11 @@ class MotorsBus(abc.ABC):
                 f"{self.__class__.__name__}('{self.port}') is not connected. You need to run `{self.__class__.__name__}.connect()`."
             )
 
-        if isinstance(values, int):
-            ids_values = {id_: values for id_ in self.ids}
+        if isinstance(values, int):  # TODO(Steven): wouldn't this be instead isinstance(values, Value)?
+            ids_values = {
+                id_: values for id_ in self.ids
+            }  # TODO(Steven): And then cast it here to an int if it is not possible to write a float
+            # TODO(Steven): Consider also doing: ids_values=dict.fromkeys(self.ids, values)
         elif isinstance(values, dict):
             ids_values = {self._get_motor_id(motor): val for motor, val in values.items()}
         else:
